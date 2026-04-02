@@ -29,4 +29,7 @@ jobs:
             cd dtm_dashboard
             npm ci
             npm run build
-            pm2 restart dtm_dashboard || pm2 start npm --name "dtm_dashboard" -- start
+            pm2 delete dtm_dash || true
+            pm2 delete dtm_dashboard || true
+            pm2 start npm --name "dtm_dashboard" --cwd ~/dtm_dashboard/dtm_dashboard -- start
+            pm2 save
