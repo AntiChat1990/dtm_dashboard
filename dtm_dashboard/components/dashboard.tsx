@@ -91,18 +91,31 @@ export const Dashboard = ({ data }: DashboardProps) => {
     () => data.currencyRates.find((rate) => rate.code === selectedCurrency) ?? data.currencyRates[0],
     [data.currencyRates, selectedCurrency],
   );
-  const moneyFormatter = useMemo(
+  const moneyFormatter = useMemo(() => {
+    if (selectedCurrency === "BTC") {
+      return null;
+    }
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: selectedCurrency,
+      maximumFractionDigits: 0,
+    });
+  }, [selectedCurrency]);
+  const btcFormatter = useMemo(
     () =>
       new Intl.NumberFormat("ru-RU", {
-        style: "currency",
-        currency: selectedCurrency,
-        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3,
       }),
-    [selectedCurrency],
+    [],
   );
   const formatAmount = (amountRub: number): string => {
     const divisor = selectedCurrencyMeta?.rubRate || 1;
-    return moneyFormatter.format(amountRub / divisor);
+    const converted = amountRub / divisor;
+    if (selectedCurrency === "BTC") {
+      return `₿${btcFormatter.format(converted)}`;
+    }
+    return moneyFormatter ? moneyFormatter.format(converted) : `${converted}`;
   };
 
   const peakMonthRevenue = useMemo(

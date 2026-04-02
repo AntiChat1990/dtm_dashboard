@@ -27,7 +27,7 @@ export type DashboardData = {
   generatedAt: string;
 };
 
-export type CurrencyCode = "RUB" | "USD" | "EUR" | "CNY";
+export type CurrencyCode = "RUB" | "USD" | "EUR" | "CNY" | "BTC";
 
 export type CurrencyRate = {
   code: CurrencyCode;

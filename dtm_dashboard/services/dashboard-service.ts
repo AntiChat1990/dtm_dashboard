@@ -41,12 +41,14 @@ const CURRENCY_META: Record<CurrencyCode, Pick<CurrencyRate, "name" | "symbol">>
   USD: { name: "Доллар", symbol: "$" },
   EUR: { name: "Евро", symbol: "€" },
   CNY: { name: "Юань", symbol: "¥" },
+  BTC: { name: "Биткоин", symbol: "₿" },
 };
 
 const FALLBACK_RUB_RATES: Record<Exclude<CurrencyCode, "RUB">, number> = {
   USD: 80,
   EUR: 90,
   CNY: 11,
+  BTC: 5500000,
 };
 
 const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
@@ -83,11 +85,19 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
       source: "Fallback",
       updatedAt: new Date().toISOString(),
     },
+    {
+      code: "BTC",
+      name: CURRENCY_META.BTC.name,
+      symbol: CURRENCY_META.BTC.symbol,
+      rubRate: FALLBACK_RUB_RATES.BTC,
+      source: "Fallback",
+      updatedAt: new Date().toISOString(),
+    },
   ];
 
   try {
     const coinbaseResponse = await fetch("https://api.coinbase.com/v2/exchange-rates?currency=RUB", {
-      next: { revalidate: 3600 },
+      next: { revalidate: 600 },
     });
 
     if (coinbaseResponse.ok) {
@@ -144,12 +154,20 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
             source: "api.coinbase.com",
             updatedAt,
           },
+          {
+            code: "BTC",
+            name: CURRENCY_META.BTC.name,
+            symbol: CURRENCY_META.BTC.symbol,
+            rubRate: toRub("BTC"),
+            source: "api.coinbase.com",
+            updatedAt,
+          },
         ];
       }
     }
 
     const fallbackResponse = await fetch("https://open.er-api.com/v6/latest/RUB", {
-      next: { revalidate: 3600 },
+      next: { revalidate: 600 },
     });
 
     if (!fallbackResponse.ok) {
@@ -208,6 +226,14 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
         name: CURRENCY_META.CNY.name,
         symbol: CURRENCY_META.CNY.symbol,
         rubRate: toRubFromFallback("CNY"),
+        source: "open.er-api.com",
+        updatedAt,
+      },
+      {
+        code: "BTC",
+        name: CURRENCY_META.BTC.name,
+        symbol: CURRENCY_META.BTC.symbol,
+        rubRate: toRubFromFallback("BTC"),
         source: "open.er-api.com",
         updatedAt,
       },
