@@ -145,7 +145,6 @@ export const Dashboard = ({ data }: DashboardProps) => {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-1">
               <Image src="/dtm-logo.svg" alt="DTM logo" width={252} height={60} className="dtm-brand-logo h-14 w-auto" />
-              <h1 className="text-2xl font-semibold tracking-tight">Свод по Excel-отчетам</h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Обновлено: {new Date(data.generatedAt).toLocaleString("ru-RU")}
               </p>
