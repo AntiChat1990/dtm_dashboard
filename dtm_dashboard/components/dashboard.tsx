@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CurrencyCode, DashboardData } from "@/lib/dashboard-types";
 
@@ -32,8 +33,14 @@ export const Dashboard = ({ data }: DashboardProps) => {
     try {
       const savedTheme = localStorage.getItem("theme");
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const shouldUseDark = savedTheme ? savedTheme === "dark" : prefersDark;
-      document.documentElement.classList.toggle("dark", shouldUseDark);
+      const resolvedTheme =
+        savedTheme === "dark" || savedTheme === "dtm"
+          ? savedTheme
+          : prefersDark
+            ? "dark"
+            : "light";
+      document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+      document.documentElement.classList.toggle("dtm", resolvedTheme === "dtm");
     } catch {
       // Ignore storage/media query errors.
     }
@@ -59,8 +66,10 @@ export const Dashboard = ({ data }: DashboardProps) => {
   const toggleTheme = () => {
     const root = document.documentElement;
     const isDark = root.classList.contains("dark");
-    const nextTheme = isDark ? "light" : "dark";
+    const isDtm = root.classList.contains("dtm");
+    const nextTheme = isDark ? "dtm" : isDtm ? "light" : "dark";
     root.classList.toggle("dark", nextTheme === "dark");
+    root.classList.toggle("dtm", nextTheme === "dtm");
     localStorage.setItem("theme", nextTheme);
   };
 
@@ -113,17 +122,17 @@ export const Dashboard = ({ data }: DashboardProps) => {
   ];
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 sm:px-6">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 dtm:bg-[radial-gradient(circle_at_top,#d3f4f7_0%,#effbfc_48%,#ffffff_100%)] dtm:text-teal-950 sm:px-6">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="rounded-2xl border border-white/70 bg-gradient-to-br from-white/90 to-sky-50/60 p-6 shadow-sm backdrop-blur dark:border-zinc-700/60 dark:from-zinc-900/80 dark:to-zinc-900/60"
+          className="rounded-2xl border border-white/70 bg-gradient-to-br from-white/90 to-sky-50/60 p-6 shadow-sm backdrop-blur dark:border-zinc-700/60 dark:from-zinc-900/80 dark:to-zinc-900/60 dtm:border-teal-200/80 dtm:from-teal-50/90 dtm:to-cyan-50/70"
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">DTM Dashboard</p>
+              <Image src="/dtm-logo.svg" alt="DTM logo" width={252} height={60} className="dtm-brand-logo h-14 w-auto" />
               <h1 className="text-2xl font-semibold tracking-tight">Свод по Excel-отчетам</h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Обновлено: {new Date(data.generatedAt).toLocaleString("ru-RU")}
@@ -229,24 +238,27 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
                 aria-label="Переключить тему"
               >
-                <svg
-                  aria-hidden
-                  viewBox="0 0 20 20"
-                  className="h-4 w-4 dark:hidden"
-                >
+                <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 dark:hidden dtm:hidden">
                   <path
-                    d="M10 2.75a.75.75 0 0 1 .75.75V5a.75.75 0 0 1-1.5 0V3.5a.75.75 0 0 1 .75-.75Zm0 11.5A4.25 4.25 0 1 0 10 5.75a4.25 4.25 0 0 0 0 8.5Zm7.25-4.25a.75.75 0 0 1-.75.75H15a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM5 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 5 10Zm9.192 4.192a.75.75 0 0 1 1.06 0l.53.53a.75.75 0 1 1-1.06 1.06l-.53-.53a.75.75 0 0 1 0-1.06ZM4.748 4.748a.75.75 0 0 1 1.06 0l.53.53a.75.75 0 1 1-1.06 1.06l-.53-.53a.75.75 0 0 1 0-1.06Zm10.504 0a.75.75 0 0 1 0 1.06l-.53.53a.75.75 0 1 1-1.06-1.06l.53-.53a.75.75 0 0 1 1.06 0ZM5.808 14.192a.75.75 0 0 1 0 1.06l-.53.53a.75.75 0 0 1-1.06-1.06l.53-.53a.75.75 0 0 1 1.06 0Z"
+                    d="M10 1.5a.75.75 0 0 1 .75.75V4a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 10 1.5Zm0 14a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8.5-4a.75.75 0 0 1-.75.75H16a.75.75 0 0 1 0-1.5h1.75a.75.75 0 0 1 .75.75ZM4 11.25a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h1.75a.75.75 0 0 1 .75.75Zm11.364 5.114a.75.75 0 0 1-1.06 0l-1.237-1.237a.75.75 0 1 1 1.06-1.06l1.237 1.236a.75.75 0 0 1 0 1.061ZM6.933 7.933a.75.75 0 0 1-1.06 0L4.636 6.696a.75.75 0 1 1 1.06-1.06l1.237 1.236a.75.75 0 0 1 0 1.061Zm8.431 0a.75.75 0 0 1 0-1.06l1.237-1.237a.75.75 0 1 1 1.06 1.06l-1.236 1.237a.75.75 0 0 1-1.061 0ZM6.933 14.067a.75.75 0 0 1 0 1.06l-1.237 1.237a.75.75 0 1 1-1.06-1.06l1.236-1.237a.75.75 0 0 1 1.061 0Z"
                     fill="currentColor"
                   />
                 </svg>
-                <svg aria-hidden viewBox="0 0 20 20" className="hidden h-4 w-4 dark:block">
+                <svg aria-hidden viewBox="0 0 20 20" className="hidden h-4 w-4 dark:block dtm:hidden">
                   <path
                     d="M12.2 3.2a.75.75 0 0 1 .43 1 6.25 6.25 0 1 0 3.17 7.95.75.75 0 1 1 1.4.53A7.75 7.75 0 1 1 12.2 3.2Z"
                     fill="currentColor"
                   />
                 </svg>
-                <span className="dark:hidden">Светлая</span>
-                <span className="hidden dark:inline">Темная</span>
+                <svg aria-hidden viewBox="0 0 20 20" className="hidden h-4 w-4 dtm:block">
+                  <path
+                    d="M2 10a8 8 0 0 1 13.7-5.6l-2.1 2.1h4.8V1.7l-1.9 1.9A10 10 0 1 0 20 10h-2a8 8 0 1 1-16 0Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span className="dark:hidden dtm:hidden">Светлая</span>
+                <span className="hidden dark:inline dtm:hidden">Темная</span>
+                <span className="hidden dtm:inline">DTM</span>
               </button>
             </div>
           </div>
@@ -257,7 +269,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70"
+            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Выручка за месяц</p>
             <p className="mt-2 text-4xl font-semibold tracking-tight">{formatAmount(selectedMonth.totalRevenue)}</p>
@@ -266,7 +278,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70"
+            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Складов в отчете</p>
             <p className="mt-2 text-4xl font-semibold tracking-tight">{selectedMonth.warehouses.length}</p>
@@ -275,7 +287,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: "easeInOut" }}
-            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70"
+            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Доля от пикового месяца</p>
             <p className="mt-2 text-4xl font-semibold tracking-tight">
@@ -289,7 +301,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
             initial={{ opacity: 0, x: -14 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70"
+            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
           >
             <h2 className="text-lg font-semibold">Динамика выручки по месяцам</h2>
             <div className="mt-5 space-y-1.5">
@@ -310,10 +322,10 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 return (
                   <div
                     key={month.id}
-                    className="rounded-xl border border-zinc-200/70 bg-white/75 px-2.5 py-2 dark:border-zinc-700/70 dark:bg-zinc-900/45"
+                    className="rounded-xl border border-zinc-200/70 bg-white/75 px-2.5 py-2 dark:border-zinc-700/70 dark:bg-zinc-900/45 dtm:border-teal-200/70 dtm:bg-white/85"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{month.label}</span>
+                      <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200">{month.label}</span>
                       <div className="flex items-center justify-end gap-1.5">
                         <span className="inline-flex w-auto rounded-md bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                           {formatAmount(month.totalRevenue)}
@@ -334,7 +346,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                         </span>
                       </div>
                     </div>
-                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${width}%` }}
@@ -354,7 +366,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
             initial={{ opacity: 0, x: 14 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.32, ease: "easeInOut" }}
-            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70"
+            className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
           >
             <h2 className="text-lg font-semibold">Структура выручки</h2>
             <div className="mt-4 space-y-3">
@@ -368,10 +380,10 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 return (
                   <div
                     key={item.label}
-                    className="rounded-xl border border-zinc-200/70 bg-white/70 p-3 dark:border-zinc-700/70 dark:bg-zinc-900/50"
+                    className="rounded-xl border border-zinc-200/70 bg-white/70 p-3 dark:border-zinc-700/70 dark:bg-zinc-900/50 dtm:border-teal-200/70 dtm:bg-white/85"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.label}</span>
+                      <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200">{item.label}</span>
                       <div className="flex items-center gap-2">
                         <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                           {formatAmount(item.value)}
@@ -381,7 +393,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                         </span>
                       </div>
                     </div>
-                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.max(ratio, 1)}%` }}
@@ -400,7 +412,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeInOut" }}
-          className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70"
+          className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
         >
           <h2 className="text-lg font-semibold">Топ складов за {selectedMonth.label}</h2>
           <div className="mt-4 space-y-2">
@@ -409,10 +421,10 @@ export const Dashboard = ({ data }: DashboardProps) => {
               return (
                 <div
                   key={warehouse.warehouse}
-                  className="rounded-xl border border-zinc-200/70 bg-white/75 px-3 py-2.5 transition hover:bg-zinc-100/70 dark:border-zinc-700/70 dark:bg-zinc-900/45 dark:hover:bg-zinc-800/55"
+                  className="rounded-xl border border-zinc-200/70 bg-white/75 px-3 py-2.5 transition hover:bg-zinc-100/70 dark:border-zinc-700/70 dark:bg-zinc-900/45 dark:hover:bg-zinc-800/55 dtm:border-teal-200/70 dtm:bg-white/85 dtm:hover:bg-teal-50/90"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium">{warehouse.warehouse}</span>
+                    <span className="text-base font-semibold">{warehouse.warehouse}</span>
                     <div className="flex items-center gap-2">
                       <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                         {formatAmount(warehouse.total)}
@@ -422,7 +434,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                       </span>
                     </div>
                   </div>
-                  <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                  <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.max(share, 1)}%` }}

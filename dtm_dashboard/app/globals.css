@@ -1,9 +1,13 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dtm (&:where(.dtm, .dtm *));
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --logo-primary: #008c95;
+  --logo-secondary: #1f2937;
+  --logo-accent: #0e7490;
 }
 
 @theme inline {
@@ -16,6 +20,17 @@
 :root.dark {
   --background: #0a0a0a;
   --foreground: #ededed;
+  --logo-primary: #67d5dd;
+  --logo-secondary: #f4f4f5;
+  --logo-accent: #22d3ee;
+}
+
+:root.dtm {
+  --background: #edf7f8;
+  --foreground: #0f2f33;
+  --logo-primary: #008c95;
+  --logo-secondary: #0f2f33;
+  --logo-accent: #00a8b3;
 }
 
 body {
@@ -27,4 +42,16 @@ body {
 
 * {
   border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.dtm-brand-logo {
+  filter: none;
+}
+
+:root.dark .dtm-brand-logo {
+  filter: brightness(1.15) saturate(0.92);
+}
+
+:root.dtm .dtm-brand-logo {
+  filter: saturate(1.08) hue-rotate(-6deg);
 }
