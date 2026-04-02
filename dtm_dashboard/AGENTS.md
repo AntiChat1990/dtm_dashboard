@@ -115,7 +115,7 @@ Focus on clean architecture, performance, and maintainability.
 ---
 
 ## Project Skills
-- Skills source: `./skills/*.md`
+- Skills source: `./skills/*.md`, `./.agents/skills/*/*.md`
 - For every task in this repository, always load and apply all files from `./skills` before implementation.
 - If a skill conflicts with this file, follow this `AGENTS.md` first, then apply the skill as a lower-priority rule.
 - If `./skills` is missing or empty, report it briefly and continue with best effort.
