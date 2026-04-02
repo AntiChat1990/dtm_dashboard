@@ -124,3 +124,24 @@ body {
 :root.dtm .dtm-brand-logo {
   filter: saturate(1.08) hue-rotate(-6deg);
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  .pdf-export-control {
+    display: none !important;
+  }
+
+  .pdf-report-root {
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+
+  .pdf-report-root * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
