@@ -155,10 +155,10 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 <button
                   type="button"
                   onClick={() => setMonthMenuOpen((prev) => !prev)}
-                  className="group relative inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[246px]"
+                  className="group relative inline-flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[246px]"
                 >
                   <span className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">Период</span>
-                  <span className="whitespace-nowrap font-semibold">{selectedMonth.label}</span>
+                  <span className="max-w-[130px] truncate whitespace-nowrap font-semibold sm:max-w-none">{selectedMonth.label}</span>
                   <svg
                     aria-hidden
                     viewBox="0 0 20 20"
@@ -197,7 +197,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 <button
                   type="button"
                   onClick={() => setCurrencyMenuOpen((prev) => !prev)}
-                  className="group relative inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[224px]"
+                  className="group relative inline-flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[224px]"
                 >
                   <span className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">Валюта</span>
                   <span className="whitespace-nowrap font-semibold">
@@ -247,7 +247,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[128px]"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[128px]"
                 aria-label="Переключить тему"
               >
                 <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 dark:hidden dtm:hidden">
