@@ -7,6 +7,7 @@ import type {
   CurrencyRate,
   DashboardData,
   MonthSummary,
+  WarehouseBreakdownItem,
   WarehouseRecord,
 } from "@/lib/dashboard-types";
 
@@ -306,6 +307,21 @@ const parseCurrency = (value: unknown): number => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
+const normalizeWarehouseKey = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9]/gi, "");
+
+const findSheetByName = (workbook: XLSX.WorkBook, targetNames: string[]): XLSX.WorkSheet | null => {
+  for (const sheetName of workbook.SheetNames) {
+    const normalizedSheet = sheetName.trim().toLowerCase();
+    if (targetNames.some((targetName) => normalizedSheet === targetName.trim().toLowerCase())) {
+      return workbook.Sheets[sheetName] ?? null;
+    }
+  }
+  return null;
+};
+
 const parseMonthFromFilename = (filename: string): Pick<
   MonthSummary,
   "id" | "label" | "year" | "month"
@@ -337,7 +353,7 @@ const parseMonthFromFilename = (filename: string): Pick<
 };
 
 const readSummaryRows = (workbook: XLSX.WorkBook): WarehouseRecord[] => {
-  const summarySheet = workbook.Sheets["ИТОГО"];
+  const summarySheet = findSheetByName(workbook, ["ИТОГО"]);
   if (!summarySheet) {
     return [];
   }
@@ -376,6 +392,7 @@ const readSummaryRows = (workbook: XLSX.WorkBook): WarehouseRecord[] => {
       siburClients: parseCurrency(row[4]),
       others: parseCurrency(row[5]),
       total: parseCurrency(row[6]),
+      breakdown: [],
     };
 
     if (parsedRow.total <= 0) {
@@ -386,6 +403,77 @@ const readSummaryRows = (workbook: XLSX.WorkBook): WarehouseRecord[] => {
   }
 
   return result;
+};
+
+const readWarehouseBreakdown = (workbook: XLSX.WorkBook): Map<string, WarehouseBreakdownItem[]> => {
+  const summarySheet = findSheetByName(workbook, ["Сводка"]);
+  if (!summarySheet) {
+    return new Map<string, WarehouseBreakdownItem[]>();
+  }
+
+  const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(summarySheet, {
+    header: 1,
+    defval: null,
+    raw: false,
+  });
+
+  const grouped = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const source = String(row[0] ?? "").trim();
+    const warehouse = String(row[1] ?? "").trim();
+    const amount = parseCurrency(row[2]);
+
+    if (!source || !warehouse || amount <= 0) {
+      continue;
+    }
+
+    const warehouseKey = normalizeWarehouseKey(warehouse);
+    if (!warehouseKey) {
+      continue;
+    }
+
+    const sourceTotals = grouped.get(warehouseKey) ?? new Map<string, number>();
+    sourceTotals.set(source, (sourceTotals.get(source) ?? 0) + amount);
+    grouped.set(warehouseKey, sourceTotals);
+  }
+
+  const result = new Map<string, WarehouseBreakdownItem[]>();
+  for (const [warehouseKey, sourceTotals] of grouped.entries()) {
+    const breakdown = Array.from(sourceTotals.entries())
+      .map(([source, amount]) => ({ source, amount }))
+      .sort((a, b) => b.amount - a.amount);
+
+    if (breakdown.length > 0) {
+      result.set(warehouseKey, breakdown);
+    }
+  }
+
+  return result;
+};
+
+const resolveWarehouseBreakdown = (
+  warehouseName: string,
+  breakdownByWarehouse: Map<string, WarehouseBreakdownItem[]>,
+): WarehouseBreakdownItem[] => {
+  const normalizedWarehouse = normalizeWarehouseKey(warehouseName);
+  if (!normalizedWarehouse) {
+    return [];
+  }
+
+  const direct = breakdownByWarehouse.get(normalizedWarehouse);
+  if (direct) {
+    return direct;
+  }
+
+  const candidates = Array.from(breakdownByWarehouse.entries())
+    .filter(([key]) => key.includes(normalizedWarehouse) || normalizedWarehouse.includes(key))
+    .map(([, value]) => value);
+
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  return [];
 };
 
 const aggregateCategories = (warehouses: WarehouseRecord[]): CategoryTotals => {
@@ -406,11 +494,17 @@ const parseWorkbook = (filePath: string): MonthSummary => {
   const workbookBuffer = fs.readFileSync(filePath);
   const workbook = XLSX.read(workbookBuffer, { type: "buffer" });
   const { id, label, month, year } = parseMonthFromFilename(path.basename(filePath));
-  const warehouses = readSummaryRows(workbook).sort((a, b) => b.total - a.total);
+  const warehouseBreakdown = readWarehouseBreakdown(workbook);
+  const warehouses = readSummaryRows(workbook)
+    .map((warehouse) => ({
+      ...warehouse,
+      breakdown: resolveWarehouseBreakdown(warehouse.warehouse, warehouseBreakdown),
+    }))
+    .sort((a, b) => b.total - a.total);
   const categories = aggregateCategories(warehouses);
 
   const totalFromA1 = (() => {
-    const summarySheet = workbook.Sheets["ИТОГО"];
+    const summarySheet = findSheetByName(workbook, ["ИТОГО"]);
     if (!summarySheet) {
       return 0;
     }

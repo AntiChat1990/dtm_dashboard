@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CurrencyCode, DashboardData } from "@/lib/dashboard-types";
@@ -29,6 +29,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>("RUB");
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const [expandedWarehouse, setExpandedWarehouse] = useState<string | null>(null);
   const monthMenuRef = useRef<HTMLDivElement | null>(null);
   const currencyMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -75,7 +76,6 @@ export const Dashboard = ({ data }: DashboardProps) => {
     root.classList.toggle("dtm", nextTheme === "dtm");
     localStorage.setItem("theme", nextTheme);
   };
-
   const selectedMonth = useMemo(
     () => months.find((month) => month.id === selectedId) ?? months.at(-1) ?? null,
     [months, selectedId],
@@ -123,7 +123,6 @@ export const Dashboard = ({ data }: DashboardProps) => {
     [months],
   );
   const monthsForTrend = useMemo(() => [...months].reverse(), [months]);
-
   if (months.length === 0 || !selectedMonth) {
     return (
       <main className="flex min-h-screen items-center justify-center px-6">
@@ -147,7 +146,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
   ];
 
   return (
-    <main className="dtm-theme-scope min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 dtm:bg-[radial-gradient(circle_at_top,#d3f4f7_0%,#effbfc_48%,#ffffff_100%)] dtm:text-teal-950 sm:px-6">
+    <main className="pdf-report-root dtm-theme-scope min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 dtm:bg-[radial-gradient(circle_at_top,#d3f4f7_0%,#effbfc_48%,#ffffff_100%)] dtm:text-teal-950 sm:px-6">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
@@ -162,7 +161,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 Обновлено: {new Date(data.generatedAt).toLocaleString("ru-RU")}
               </p>
             </div>
-            <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
+            <div className="pdf-export-control flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
               <div className="relative" ref={monthMenuRef}>
                 <button
                   type="button"
@@ -189,6 +188,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                           type="button"
                           onClick={() => {
                             setSelectedId(month.id);
+                            setExpandedWarehouse(null);
                             setMonthMenuOpen(false);
                           }}
                           className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition ${
@@ -480,6 +480,8 @@ export const Dashboard = ({ data }: DashboardProps) => {
               const amountDelta = warehouse.total - previousTotal;
               const percentDelta =
                 previousTotal > 0 ? (amountDelta / previousTotal) * 100 : warehouse.total > 0 ? 100 : 0;
+              const hasBreakdown = warehouse.breakdown.length > 0;
+              const isExpanded = expandedWarehouse === warehouse.warehouse;
               const isPositive =
                 amountDelta >= 0
                   ? true
@@ -495,7 +497,27 @@ export const Dashboard = ({ data }: DashboardProps) => {
                   className="rounded-xl border border-zinc-200/70 bg-white/75 px-3 py-2.5 transition hover:bg-zinc-100/70 dark:border-zinc-700/70 dark:bg-zinc-900/45 dark:hover:bg-zinc-800/55 dtm:border-teal-200/70 dtm:bg-white/85 dtm:hover:bg-teal-50/90"
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                    <span className="text-base font-semibold">{warehouse.warehouse}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!hasBreakdown) {
+                          return;
+                        }
+                        setExpandedWarehouse((prev) => (prev === warehouse.warehouse ? null : warehouse.warehouse));
+                      }}
+                      className={`inline-flex items-center gap-1.5 text-left text-base font-semibold ${hasBreakdown ? "cursor-pointer" : "cursor-default"}`}
+                    >
+                      <span>{warehouse.warehouse}</span>
+                      {hasBreakdown ? (
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 20 20"
+                          className={`h-4 w-4 text-zinc-500 transition dark:text-zinc-400 ${isExpanded ? "rotate-180" : ""}`}
+                        >
+                          <path d="M5 7.5L10 12.5L15 7.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                        </svg>
+                      ) : null}
+                    </button>
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                         {formatAmount(warehouse.total)}
@@ -535,6 +557,51 @@ export const Dashboard = ({ data }: DashboardProps) => {
                       {formatSharePercent(share)}
                     </span>
                   </div>
+                  <AnimatePresence initial={false}>
+                    {isExpanded && hasBreakdown ? (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, y: -6 }}
+                        animate={{ opacity: 1, height: "auto", y: 0 }}
+                        exit={{ opacity: 0, height: 0, y: -6 }}
+                        transition={{ duration: 0.25, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-3 rounded-xl border border-zinc-200/70 bg-white/70 p-3 dark:border-zinc-700/70 dark:bg-zinc-900/55 dtm:border-teal-200/70 dtm:bg-white/90">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            Из чего сформирована выручка
+                          </p>
+                          <div className="space-y-2">
+                            {warehouse.breakdown.map((item) => {
+                              const breakdownShare = (item.amount / (warehouse.total || 1)) * 100;
+                              return (
+                                <div key={`${warehouse.warehouse}-${item.source}`}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.source}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-xs font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                                        {formatAmount(item.amount)}
+                                      </span>
+                                      <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                                        {formatSharePercent(breakdownShare)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${Math.max(breakdownShare, 1)}%` }}
+                                      transition={{ duration: 0.25, ease: "easeInOut" }}
+                                      className="h-full rounded-full bg-sky-500"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
               );
             })}

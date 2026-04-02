@@ -9,6 +9,12 @@ export type CategoryTotals = {
 
 export type WarehouseRecord = CategoryTotals & {
   warehouse: string;
+  breakdown: WarehouseBreakdownItem[];
+};
+
+export type WarehouseBreakdownItem = {
+  source: string;
+  amount: number;
 };
 
 export type MonthSummary = {
