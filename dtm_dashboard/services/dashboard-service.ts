@@ -86,34 +86,96 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
   ];
 
   try {
-    const response = await fetch("https://open.er-api.com/v6/latest/RUB", {
+    const coinbaseResponse = await fetch("https://api.coinbase.com/v2/exchange-rates?currency=RUB", {
       next: { revalidate: 3600 },
     });
 
-    if (!response.ok) {
+    if (coinbaseResponse.ok) {
+      const coinbaseJson = (await coinbaseResponse.json()) as {
+        data?: {
+          currency?: string;
+          rates?: Partial<Record<CurrencyCode, string>>;
+        };
+      };
+
+      const rates = coinbaseJson.data?.rates;
+      if (coinbaseJson.data?.currency === "RUB" && rates) {
+        const toRub = (code: Exclude<CurrencyCode, "RUB">): number => {
+          const raw = rates[code];
+          const parsed = typeof raw === "string" ? Number.parseFloat(raw) : Number.NaN;
+          if (!Number.isFinite(parsed) || parsed <= 0) {
+            return FALLBACK_RUB_RATES[code];
+          }
+          return 1 / parsed;
+        };
+
+        const updatedAt = new Date().toISOString();
+
+        return [
+          {
+            code: "RUB",
+            name: CURRENCY_META.RUB.name,
+            symbol: CURRENCY_META.RUB.symbol,
+            rubRate: 1,
+            source: "api.coinbase.com",
+            updatedAt,
+          },
+          {
+            code: "USD",
+            name: CURRENCY_META.USD.name,
+            symbol: CURRENCY_META.USD.symbol,
+            rubRate: toRub("USD"),
+            source: "api.coinbase.com",
+            updatedAt,
+          },
+          {
+            code: "EUR",
+            name: CURRENCY_META.EUR.name,
+            symbol: CURRENCY_META.EUR.symbol,
+            rubRate: toRub("EUR"),
+            source: "api.coinbase.com",
+            updatedAt,
+          },
+          {
+            code: "CNY",
+            name: CURRENCY_META.CNY.name,
+            symbol: CURRENCY_META.CNY.symbol,
+            rubRate: toRub("CNY"),
+            source: "api.coinbase.com",
+            updatedAt,
+          },
+        ];
+      }
+    }
+
+    const fallbackResponse = await fetch("https://open.er-api.com/v6/latest/RUB", {
+      next: { revalidate: 3600 },
+    });
+
+    if (!fallbackResponse.ok) {
       return defaults;
     }
 
-    const json = (await response.json()) as {
+    const fallbackJson = (await fallbackResponse.json()) as {
       result?: string;
       time_last_update_utc?: string;
       rates?: Partial<Record<CurrencyCode, number>>;
     };
 
-    if (json.result !== "success" || !json.rates) {
+    if (fallbackJson.result !== "success" || !fallbackJson.rates) {
       return defaults;
     }
 
-    const toRub = (code: Exclude<CurrencyCode, "RUB">): number => {
-      const direct = json.rates?.[code];
+    const toRubFromFallback = (code: Exclude<CurrencyCode, "RUB">): number => {
+      const direct = fallbackJson.rates?.[code];
       if (!direct || direct <= 0) {
         return FALLBACK_RUB_RATES[code];
       }
       return 1 / direct;
     };
 
-    const updatedAt = json.time_last_update_utc
-      ? new Date(json.time_last_update_utc).toISOString()
+    const updatedAt = fallbackJson.time_last_update_utc
+      ? new Date(fallbackJson.time_last_update_utc).toISOString()
       : new Date().toISOString();
 
     return [
@@ -129,7 +191,7 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
         code: "USD",
         name: CURRENCY_META.USD.name,
         symbol: CURRENCY_META.USD.symbol,
-        rubRate: toRub("USD"),
+        rubRate: toRubFromFallback("USD"),
         source: "open.er-api.com",
         updatedAt,
       },
@@ -137,7 +199,7 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
         code: "EUR",
         name: CURRENCY_META.EUR.name,
         symbol: CURRENCY_META.EUR.symbol,
-        rubRate: toRub("EUR"),
+        rubRate: toRubFromFallback("EUR"),
         source: "open.er-api.com",
         updatedAt,
       },
@@ -145,7 +207,7 @@ const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
         code: "CNY",
         name: CURRENCY_META.CNY.name,
         symbol: CURRENCY_META.CNY.symbol,
-        rubRate: toRub("CNY"),
+        rubRate: toRubFromFallback("CNY"),
         source: "open.er-api.com",
         updatedAt,
       },
