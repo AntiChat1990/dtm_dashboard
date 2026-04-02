@@ -33,6 +33,75 @@
   --logo-accent: #00a8b3;
 }
 
+:root.dtm .text-zinc-100 {
+  color: #ecfeff;
+}
+
+:root.dtm .text-zinc-200 {
+  color: #cffafe;
+}
+
+:root.dtm .text-zinc-300 {
+  color: #99f6e4;
+}
+
+:root.dtm .text-zinc-400 {
+  color: #2f7e85;
+}
+
+:root.dtm .text-zinc-500 {
+  color: #1f666c;
+}
+
+:root.dtm .text-zinc-600 {
+  color: #16575d;
+}
+
+:root.dtm .text-zinc-700 {
+  color: #124a50;
+}
+
+:root.dtm .text-zinc-800 {
+  color: #103e43;
+}
+
+:root.dtm .text-zinc-900 {
+  color: #0f2f33;
+}
+
+:root.dtm .dtm-theme-scope,
+:root.dtm .dtm-theme-scope p,
+:root.dtm .dtm-theme-scope span,
+:root.dtm .dtm-theme-scope label,
+:root.dtm .dtm-theme-scope th,
+:root.dtm .dtm-theme-scope td {
+  color: #0f2f33;
+}
+
+:root.dtm .dtm-theme-scope h1,
+:root.dtm .dtm-theme-scope h2,
+:root.dtm .dtm-theme-scope h3 {
+  color: #0b3d42;
+}
+
+:root.dtm .dtm-theme-scope .text-zinc-400,
+:root.dtm .dtm-theme-scope .text-zinc-500 {
+  color: #1f666c;
+}
+
+:root.dtm .dtm-theme-scope .text-zinc-600,
+:root.dtm .dtm-theme-scope .text-zinc-700 {
+  color: #124a50;
+}
+
+:root.dtm .dtm-theme-scope .text-sky-700 {
+  color: #0f3f44;
+}
+
+:root.dtm .dtm-theme-scope .bg-sky-100 {
+  background-color: #d2f1f3;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

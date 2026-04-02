@@ -19,6 +19,9 @@ const formatDeltaPercent = (value: number): string => {
 const formatSharePercent = (value: number): string => `${value.toFixed(1)}%`;
 const formatRubRate = (value: number): string =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(value);
+const formatSignedAmount = (value: number, formatAmount: (amountRub: number) => string): string =>
+  `${value >= 0 ? "+" : "−"}${formatAmount(Math.abs(value))}`;
+type CategoryKey = "sibur" | "plant" | "rusvinyl" | "siburClients" | "others";
 
 export const Dashboard = ({ data }: DashboardProps) => {
   const months = data.months;
@@ -77,6 +80,13 @@ export const Dashboard = ({ data }: DashboardProps) => {
     () => months.find((month) => month.id === selectedId) ?? months.at(-1) ?? null,
     [months, selectedId],
   );
+  const previousMonth = useMemo(() => {
+    const currentIndex = months.findIndex((month) => month.id === selectedId);
+    if (currentIndex <= 0) {
+      return null;
+    }
+    return months[currentIndex - 1] ?? null;
+  }, [months, selectedId]);
   const selectedCurrencyMeta = useMemo(
     () => data.currencyRates.find((rate) => rate.code === selectedCurrency) ?? data.currencyRates[0],
     [data.currencyRates, selectedCurrency],
@@ -111,18 +121,20 @@ export const Dashboard = ({ data }: DashboardProps) => {
     );
   }
 
-  const topWarehouses = selectedMonth.warehouses.slice(0, 8);
+  const topWarehouses = selectedMonth.warehouses.filter((warehouse) => warehouse.total > 0);
+  const averageRevenuePerWarehouse =
+    topWarehouses.length > 0 ? selectedMonth.totalRevenue / topWarehouses.length : 0;
 
-  const categoryCards = [
-    { label: "Сибур", value: selectedMonth.categoryTotals.sibur },
-    { label: "Завод", value: selectedMonth.categoryTotals.plant },
-    { label: "Русвинил", value: selectedMonth.categoryTotals.rusvinyl },
-    { label: "Клиенты Сибура", value: selectedMonth.categoryTotals.siburClients },
-    { label: "Остальные", value: selectedMonth.categoryTotals.others },
+  const categoryCards: Array<{ key: CategoryKey; label: string; value: number }> = [
+    { key: "sibur", label: "Сибур", value: selectedMonth.categoryTotals.sibur },
+    { key: "plant", label: "Завод", value: selectedMonth.categoryTotals.plant },
+    { key: "rusvinyl", label: "Русвинил", value: selectedMonth.categoryTotals.rusvinyl },
+    { key: "siburClients", label: "Клиенты Сибура", value: selectedMonth.categoryTotals.siburClients },
+    { key: "others", label: "Остальные", value: selectedMonth.categoryTotals.others },
   ];
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 dtm:bg-[radial-gradient(circle_at_top,#d3f4f7_0%,#effbfc_48%,#ffffff_100%)] dtm:text-teal-950 sm:px-6">
+    <main className="dtm-theme-scope min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 dtm:bg-[radial-gradient(circle_at_top,#d3f4f7_0%,#effbfc_48%,#ffffff_100%)] dtm:text-teal-950 sm:px-6">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
@@ -143,10 +155,10 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 <button
                   type="button"
                   onClick={() => setMonthMenuOpen((prev) => !prev)}
-                  className="group relative inline-flex items-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                  className="group relative inline-flex w-[246px] items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
                 >
-                  <span className="text-zinc-500 dark:text-zinc-400">Период</span>
-                  <span className="font-semibold">{selectedMonth.label}</span>
+                  <span className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">Период</span>
+                  <span className="whitespace-nowrap font-semibold">{selectedMonth.label}</span>
                   <svg
                     aria-hidden
                     viewBox="0 0 20 20"
@@ -157,7 +169,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 </button>
                 {monthMenuOpen ? (
                   <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95">
-                    {months.map((month) => {
+                    {monthsForTrend.map((month) => {
                       const isSelected = month.id === selectedMonth.id;
                       return (
                         <button
@@ -185,13 +197,13 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 <button
                   type="button"
                   onClick={() => setCurrencyMenuOpen((prev) => !prev)}
-                  className="group relative inline-flex items-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                  className="group relative inline-flex w-[224px] items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
                 >
-                  <span className="text-zinc-500 dark:text-zinc-400">Валюта</span>
-                  <span className="font-semibold">
+                  <span className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">Валюта</span>
+                  <span className="whitespace-nowrap font-semibold">
                     {selectedCurrencyMeta?.symbol} {selectedCurrency}
                   </span>
-                  <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className="whitespace-nowrap rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                     {formatRubRate(selectedCurrencyMeta?.rubRate ?? 1)} ₽
                   </span>
                   <svg
@@ -235,7 +247,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                className="inline-flex w-[128px] items-center justify-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
                 aria-label="Переключить тему"
               >
                 <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 dark:hidden dtm:hidden">
@@ -252,7 +264,11 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 </svg>
                 <svg aria-hidden viewBox="0 0 20 20" className="hidden h-4 w-4 dtm:block">
                   <path
-                    d="M2 10a8 8 0 0 1 13.7-5.6l-2.1 2.1h4.8V1.7l-1.9 1.9A10 10 0 1 0 20 10h-2a8 8 0 1 1-16 0Z"
+                    d="M2.75 17.25V7.3L10 2.75L17.25 7.3V17.25H2.75ZM4.25 15.75H15.75V8.12L10 4.5L4.25 8.12V15.75Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M6 13H9V15H6V13ZM6 10H9V12H6V10ZM10.5 12H14V15H10.5V12Z"
                     fill="currentColor"
                   />
                 </svg>
@@ -280,8 +296,9 @@ export const Dashboard = ({ data }: DashboardProps) => {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm dark:border-zinc-700/60 dark:bg-zinc-900/70 dtm:border-teal-200/70 dtm:bg-white/85"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Складов в отчете</p>
-            <p className="mt-2 text-4xl font-semibold tracking-tight">{selectedMonth.warehouses.length}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Средняя выручка на склад</p>
+            <p className="mt-2 text-4xl font-semibold tracking-tight">{formatAmount(averageRevenuePerWarehouse)}</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Складов с прибылью: {topWarehouses.length}</p>
           </motion.article>
           <motion.article
             initial={{ opacity: 0, y: 10 }}
@@ -372,10 +389,16 @@ export const Dashboard = ({ data }: DashboardProps) => {
             <div className="mt-4 space-y-3">
               {categoryCards.map((item) => {
                 const ratio = (item.value / (selectedMonth.totalRevenue || 1)) * 100;
-                const shareClass =
-                  ratio >= 20
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200";
+                const previousValue = previousMonth?.categoryTotals[item.key] ?? 0;
+                const amountDelta = item.value - previousValue;
+                const percentDelta =
+                  previousValue > 0 ? (amountDelta / previousValue) * 100 : item.value > 0 ? 100 : 0;
+                const isPositive = amountDelta >= 0;
+                const deltaBadgeClass = isPositive
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+                const deltaSign = amountDelta >= 0 ? "+" : "";
+                const shareClass = "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200";
 
                 return (
                   <div
@@ -388,18 +411,40 @@ export const Dashboard = ({ data }: DashboardProps) => {
                         <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                           {formatAmount(item.value)}
                         </span>
-                        <span className={`rounded-lg px-2 py-1 text-sm font-semibold ${shareClass}`}>
-                          {formatSharePercent(ratio)}
+                        <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold ${deltaBadgeClass}`}>
+                          <svg aria-hidden viewBox="0 0 16 16" className="h-3 w-3">
+                            {isPositive ? (
+                              <path d="M8 2l4 4H9v8H7V6H4l4-4z" fill="currentColor" />
+                            ) : (
+                              <path d="M8 14l-4-4h3V2h2v8h3l-4 4z" fill="currentColor" />
+                            )}
+                          </svg>
+                          <span>{formatSignedAmount(amountDelta, formatAmount)}</span>
+                        </span>
+                        <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold ${deltaBadgeClass}`}>
+                          <svg aria-hidden viewBox="0 0 16 16" className="h-3 w-3">
+                            {isPositive ? (
+                              <path d="M3 10l3-3 2 2 5-5 1 1-6 6-2-2-2 2z" fill="currentColor" />
+                            ) : (
+                              <path d="M3 6l3 3 2-2 5 5 1-1-6-6-2 2-2-2z" fill="currentColor" />
+                            )}
+                          </svg>
+                          <span>{`${deltaSign}${percentDelta.toFixed(1)}%`}</span>
                         </span>
                       </div>
                     </div>
-                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.max(ratio, 1)}%` }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="h-full rounded-full bg-sky-500"
-                      />
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.max(ratio, 1)}%` }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                          className="h-full rounded-full bg-sky-500"
+                        />
+                      </div>
+                      <span className={`rounded-lg px-2 py-1 text-xs font-semibold ${shareClass}`}>
+                        {formatSharePercent(ratio)}
+                      </span>
                     </div>
                   </div>
                 );
@@ -418,6 +463,20 @@ export const Dashboard = ({ data }: DashboardProps) => {
           <div className="mt-4 space-y-2">
             {topWarehouses.map((warehouse) => {
               const share = (warehouse.total / (selectedMonth.totalRevenue || 1)) * 100;
+              const previousTotal =
+                previousMonth?.warehouses.find((item) => item.warehouse === warehouse.warehouse)?.total ?? 0;
+              const amountDelta = warehouse.total - previousTotal;
+              const percentDelta =
+                previousTotal > 0 ? (amountDelta / previousTotal) * 100 : warehouse.total > 0 ? 100 : 0;
+              const isPositive =
+                amountDelta >= 0
+                  ? true
+                  : false;
+              const deltaBadgeClass = isPositive
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+              const deltaSign = amountDelta >= 0 ? "+" : "";
+
               return (
                 <div
                   key={warehouse.warehouse}
@@ -429,18 +488,40 @@ export const Dashboard = ({ data }: DashboardProps) => {
                       <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                         {formatAmount(warehouse.total)}
                       </span>
-                      <span className="rounded-lg bg-zinc-100 px-2 py-1 text-sm font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                        {formatSharePercent(share)}
+                      <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold ${deltaBadgeClass}`}>
+                        <svg aria-hidden viewBox="0 0 16 16" className="h-3 w-3">
+                          {isPositive ? (
+                            <path d="M8 2l4 4H9v8H7V6H4l4-4z" fill="currentColor" />
+                          ) : (
+                            <path d="M8 14l-4-4h3V2h2v8h3l-4 4z" fill="currentColor" />
+                          )}
+                        </svg>
+                        <span>{formatSignedAmount(amountDelta, formatAmount)}</span>
+                      </span>
+                      <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold ${deltaBadgeClass}`}>
+                        <svg aria-hidden viewBox="0 0 16 16" className="h-3 w-3">
+                          {isPositive ? (
+                            <path d="M3 10l3-3 2 2 5-5 1 1-6 6-2-2-2 2z" fill="currentColor" />
+                          ) : (
+                            <path d="M3 6l3 3 2-2 5 5 1-1-6-6-2 2-2-2z" fill="currentColor" />
+                          )}
+                        </svg>
+                        <span>{`${deltaSign}${percentDelta.toFixed(1)}%`}</span>
                       </span>
                     </div>
                   </div>
-                  <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.max(share, 1)}%` }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="h-full rounded-full bg-sky-500"
-                    />
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700 dtm:bg-teal-100">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.max(share, 1)}%` }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="h-full rounded-full bg-sky-500"
+                      />
+                    </div>
+                    <span className="rounded-lg bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                      {formatSharePercent(share)}
+                    </span>
                   </div>
                 </div>
               );
