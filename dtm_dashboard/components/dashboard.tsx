@@ -150,12 +150,12 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 Обновлено: {new Date(data.generatedAt).toLocaleString("ru-RU")}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+            <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
               <div className="relative" ref={monthMenuRef}>
                 <button
                   type="button"
                   onClick={() => setMonthMenuOpen((prev) => !prev)}
-                  className="group relative inline-flex w-[246px] items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                  className="group relative inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[246px]"
                 >
                   <span className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">Период</span>
                   <span className="whitespace-nowrap font-semibold">{selectedMonth.label}</span>
@@ -168,7 +168,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                   </svg>
                 </button>
                 {monthMenuOpen ? (
-                  <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95">
+                  <div className="absolute left-0 right-auto z-20 mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95 sm:left-auto sm:right-0 sm:w-56">
                     {monthsForTrend.map((month) => {
                       const isSelected = month.id === selectedMonth.id;
                       return (
@@ -197,7 +197,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                 <button
                   type="button"
                   onClick={() => setCurrencyMenuOpen((prev) => !prev)}
-                  className="group relative inline-flex w-[224px] items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                  className="group relative inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[224px]"
                 >
                   <span className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">Валюта</span>
                   <span className="whitespace-nowrap font-semibold">
@@ -215,7 +215,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
                   </svg>
                 </button>
                 {currencyMenuOpen ? (
-                  <div className="absolute right-0 z-20 mt-2 w-72 overflow-hidden rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95">
+                  <div className="absolute left-0 right-auto z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95 sm:left-auto sm:right-0 sm:w-72">
                     {data.currencyRates.map((rate) => {
                       const isSelected = rate.code === selectedCurrency;
                       return (
@@ -247,7 +247,7 @@ export const Dashboard = ({ data }: DashboardProps) => {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="inline-flex w-[128px] items-center justify-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-[128px]"
                 aria-label="Переключить тему"
               >
                 <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 dark:hidden dtm:hidden">
@@ -341,9 +341,9 @@ export const Dashboard = ({ data }: DashboardProps) => {
                     key={month.id}
                     className="rounded-xl border border-zinc-200/70 bg-white/75 px-2.5 py-2 dark:border-zinc-700/70 dark:bg-zinc-900/45 dtm:border-teal-200/70 dtm:bg-white/85"
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                       <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200">{month.label}</span>
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5 sm:justify-end">
                         <span className="inline-flex w-auto rounded-md bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                           {formatAmount(month.totalRevenue)}
                         </span>
@@ -405,9 +405,9 @@ export const Dashboard = ({ data }: DashboardProps) => {
                     key={item.label}
                     className="rounded-xl border border-zinc-200/70 bg-white/70 p-3 dark:border-zinc-700/70 dark:bg-zinc-900/50 dtm:border-teal-200/70 dtm:bg-white/85"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                       <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200">{item.label}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                           {formatAmount(item.value)}
                         </span>
@@ -482,9 +482,9 @@ export const Dashboard = ({ data }: DashboardProps) => {
                   key={warehouse.warehouse}
                   className="rounded-xl border border-zinc-200/70 bg-white/75 px-3 py-2.5 transition hover:bg-zinc-100/70 dark:border-zinc-700/70 dark:bg-zinc-900/45 dark:hover:bg-zinc-800/55 dtm:border-teal-200/70 dtm:bg-white/85 dtm:hover:bg-teal-50/90"
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <span className="text-base font-semibold">{warehouse.warehouse}</span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span className="rounded-lg bg-sky-100 px-2 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                         {formatAmount(warehouse.total)}
                       </span>
