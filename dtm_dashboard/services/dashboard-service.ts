@@ -1,0 +1,374 @@
+import fs from "node:fs";
+import path from "node:path";
+import * as XLSX from "xlsx";
+import type {
+  CategoryTotals,
+  CurrencyCode,
+  CurrencyRate,
+  DashboardData,
+  MonthSummary,
+  WarehouseRecord,
+} from "@/lib/dashboard-types";
+
+const EXCEL_FOLDER = path.join(process.cwd(), "excel_data");
+
+const MONTH_BY_NAME: Record<string, number> = {
+  январь: 1,
+  февраль: 2,
+  март: 3,
+  апрель: 4,
+  май: 5,
+  июнь: 6,
+  июль: 7,
+  август: 8,
+  сентябрь: 9,
+  октябрь: 10,
+  ноябрь: 11,
+  декабрь: 12,
+};
+
+const EMPTY_TOTALS: CategoryTotals = {
+  sibur: 0,
+  plant: 0,
+  rusvinyl: 0,
+  siburClients: 0,
+  others: 0,
+  total: 0,
+};
+
+const CURRENCY_META: Record<CurrencyCode, Pick<CurrencyRate, "name" | "symbol">> = {
+  RUB: { name: "Рубль", symbol: "₽" },
+  USD: { name: "Доллар", symbol: "$" },
+  EUR: { name: "Евро", symbol: "€" },
+  CNY: { name: "Юань", symbol: "¥" },
+};
+
+const FALLBACK_RUB_RATES: Record<Exclude<CurrencyCode, "RUB">, number> = {
+  USD: 80,
+  EUR: 90,
+  CNY: 11,
+};
+
+const getCurrencyRates = async (): Promise<CurrencyRate[]> => {
+  const defaults: CurrencyRate[] = [
+    {
+      code: "RUB",
+      name: CURRENCY_META.RUB.name,
+      symbol: CURRENCY_META.RUB.symbol,
+      rubRate: 1,
+      source: "Локально",
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      code: "USD",
+      name: CURRENCY_META.USD.name,
+      symbol: CURRENCY_META.USD.symbol,
+      rubRate: FALLBACK_RUB_RATES.USD,
+      source: "Fallback",
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      code: "EUR",
+      name: CURRENCY_META.EUR.name,
+      symbol: CURRENCY_META.EUR.symbol,
+      rubRate: FALLBACK_RUB_RATES.EUR,
+      source: "Fallback",
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      code: "CNY",
+      name: CURRENCY_META.CNY.name,
+      symbol: CURRENCY_META.CNY.symbol,
+      rubRate: FALLBACK_RUB_RATES.CNY,
+      source: "Fallback",
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+
+  try {
+    const response = await fetch("https://open.er-api.com/v6/latest/RUB", {
+      next: { revalidate: 3600 },
+    });
+
+    if (!response.ok) {
+      return defaults;
+    }
+
+    const json = (await response.json()) as {
+      result?: string;
+      time_last_update_utc?: string;
+      rates?: Partial<Record<CurrencyCode, number>>;
+    };
+
+    if (json.result !== "success" || !json.rates) {
+      return defaults;
+    }
+
+    const toRub = (code: Exclude<CurrencyCode, "RUB">): number => {
+      const direct = json.rates?.[code];
+      if (!direct || direct <= 0) {
+        return FALLBACK_RUB_RATES[code];
+      }
+      return 1 / direct;
+    };
+
+    const updatedAt = json.time_last_update_utc
+      ? new Date(json.time_last_update_utc).toISOString()
+      : new Date().toISOString();
+
+    return [
+      {
+        code: "RUB",
+        name: CURRENCY_META.RUB.name,
+        symbol: CURRENCY_META.RUB.symbol,
+        rubRate: 1,
+        source: "open.er-api.com",
+        updatedAt,
+      },
+      {
+        code: "USD",
+        name: CURRENCY_META.USD.name,
+        symbol: CURRENCY_META.USD.symbol,
+        rubRate: toRub("USD"),
+        source: "open.er-api.com",
+        updatedAt,
+      },
+      {
+        code: "EUR",
+        name: CURRENCY_META.EUR.name,
+        symbol: CURRENCY_META.EUR.symbol,
+        rubRate: toRub("EUR"),
+        source: "open.er-api.com",
+        updatedAt,
+      },
+      {
+        code: "CNY",
+        name: CURRENCY_META.CNY.name,
+        symbol: CURRENCY_META.CNY.symbol,
+        rubRate: toRub("CNY"),
+        source: "open.er-api.com",
+        updatedAt,
+      },
+    ];
+  } catch {
+    return defaults;
+  }
+};
+
+const parseCurrency = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const cleaned = value
+    .replace(/[^\d,.\-]/g, "")
+    .replace(/\s/g, "");
+
+  if (!cleaned) {
+    return 0;
+  }
+
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+
+  const decimalSeparator =
+    lastComma >= 0 && lastDot >= 0
+      ? lastComma > lastDot
+        ? ","
+        : "."
+      : lastComma >= 0
+        ? ","
+        : lastDot >= 0
+          ? "."
+          : null;
+
+  const normalized = (() => {
+    if (!decimalSeparator) {
+      return cleaned;
+    }
+
+    if (decimalSeparator === ",") {
+      const hasSingleComma = cleaned.indexOf(",") === lastComma;
+      if (!hasSingleComma) {
+        return cleaned.replace(/,/g, "");
+      }
+      const decimalDigits = cleaned.length - lastComma - 1;
+      if (decimalDigits > 2) {
+        return cleaned.replace(/,/g, "");
+      }
+      return cleaned.replace(/\./g, "").replace(",", ".");
+    }
+
+    const hasSingleDot = cleaned.indexOf(".") === lastDot;
+    if (!hasSingleDot) {
+      return cleaned.replace(/\./g, "");
+    }
+    const decimalDigits = cleaned.length - lastDot - 1;
+    if (decimalDigits > 2) {
+      return cleaned.replace(/\./g, "");
+    }
+    return cleaned.replace(/,/g, "");
+  })();
+
+  const amount = Number.parseFloat(normalized);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const parseMonthFromFilename = (filename: string): Pick<
+  MonthSummary,
+  "id" | "label" | "year" | "month"
+> => {
+  const matched = filename.match(
+    /(Январь|Февраль|Март|Апрель|Май|Июнь|Июль|Август|Сентябрь|Октябрь|Ноябрь|Декабрь)\s+(\d{4})/i,
+  );
+
+  if (!matched) {
+    return {
+      id: "0-00",
+      label: filename,
+      year: 0,
+      month: 0,
+    };
+  }
+
+  const monthName = matched[1].toLowerCase();
+  const year = Number.parseInt(matched[2], 10);
+  const month = MONTH_BY_NAME[monthName] ?? 0;
+  const id = `${year}-${String(month).padStart(2, "0")}`;
+
+  return {
+    id,
+    label: `${matched[1]} ${year}`,
+    year,
+    month,
+  };
+};
+
+const readSummaryRows = (workbook: XLSX.WorkBook): WarehouseRecord[] => {
+  const summarySheet = workbook.Sheets["ИТОГО"];
+  if (!summarySheet) {
+    return [];
+  }
+
+  const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(summarySheet, {
+    header: 1,
+    defval: null,
+    raw: false,
+  });
+
+  const headerIndex = rows.findIndex((row) => {
+    const first = String(row[0] ?? "").trim().toLowerCase();
+    return first === "склад";
+  });
+
+  if (headerIndex < 0) {
+    return [];
+  }
+
+  const result: WarehouseRecord[] = [];
+  for (const row of rows.slice(headerIndex + 1)) {
+    const warehouse = String(row[0] ?? "").trim();
+    if (!warehouse) {
+      break;
+    }
+
+    if (warehouse.toLowerCase() === "итого") {
+      break;
+    }
+
+    const parsedRow: WarehouseRecord = {
+      warehouse,
+      sibur: parseCurrency(row[1]),
+      plant: parseCurrency(row[2]),
+      rusvinyl: parseCurrency(row[3]),
+      siburClients: parseCurrency(row[4]),
+      others: parseCurrency(row[5]),
+      total: parseCurrency(row[6]),
+    };
+
+    if (parsedRow.total <= 0) {
+      continue;
+    }
+
+    result.push(parsedRow);
+  }
+
+  return result;
+};
+
+const aggregateCategories = (warehouses: WarehouseRecord[]): CategoryTotals => {
+  return warehouses.reduce<CategoryTotals>(
+    (acc, warehouse) => ({
+      sibur: acc.sibur + warehouse.sibur,
+      plant: acc.plant + warehouse.plant,
+      rusvinyl: acc.rusvinyl + warehouse.rusvinyl,
+      siburClients: acc.siburClients + warehouse.siburClients,
+      others: acc.others + warehouse.others,
+      total: acc.total + warehouse.total,
+    }),
+    { ...EMPTY_TOTALS },
+  );
+};
+
+const parseWorkbook = (filePath: string): MonthSummary => {
+  const workbookBuffer = fs.readFileSync(filePath);
+  const workbook = XLSX.read(workbookBuffer, { type: "buffer" });
+  const { id, label, month, year } = parseMonthFromFilename(path.basename(filePath));
+  const warehouses = readSummaryRows(workbook).sort((a, b) => b.total - a.total);
+  const categories = aggregateCategories(warehouses);
+
+  const totalFromA1 = (() => {
+    const summarySheet = workbook.Sheets["ИТОГО"];
+    if (!summarySheet) {
+      return 0;
+    }
+    const row = XLSX.utils.sheet_to_json<(string | number | null)[]>(summarySheet, {
+      header: 1,
+      defval: null,
+      raw: false,
+      range: 0,
+    })[0];
+    return parseCurrency(row?.[0]);
+  })();
+
+  return {
+    id,
+    label,
+    month,
+    year,
+    warehouses,
+    categoryTotals: categories,
+    totalRevenue: totalFromA1 > 0 ? totalFromA1 : categories.total,
+  };
+};
+
+export const getDashboardData = async (): Promise<DashboardData> => {
+  const currencyRates = await getCurrencyRates();
+
+  if (!fs.existsSync(EXCEL_FOLDER)) {
+    return {
+      months: [],
+      currencyRates,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  const files = fs
+    .readdirSync(EXCEL_FOLDER)
+    .filter((file) => file.endsWith(".xlsx"))
+    .map((file) => path.join(EXCEL_FOLDER, file));
+
+  const months = files
+    .map((filePath) => parseWorkbook(filePath))
+    .sort((a, b) => (a.year - b.year !== 0 ? a.year - b.year : a.month - b.month));
+
+  return {
+    months,
+    currencyRates,
+    generatedAt: new Date().toISOString(),
+  };
+};
