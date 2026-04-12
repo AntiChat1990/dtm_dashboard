@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -59,6 +59,102 @@ const ThemeToggleButton = ({ onThemeToggle, compact }: { onThemeToggle: () => vo
 export const AppNavbar = ({ onThemeToggle }: AppNavbarProps) => {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const swipeStateRef = useRef<{
+    tracking: boolean;
+    mode: "open" | "close" | null;
+    startX: number;
+    startY: number;
+    lastX: number;
+  }>({
+    tracking: false,
+    mode: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+  });
+
+  useEffect(() => {
+    const onTouchStart = (event: TouchEvent) => {
+      if (window.innerWidth >= 768 || event.touches.length !== 1) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      const drawerWidth = Math.min(window.innerWidth * 0.82, 360);
+      const canOpenFromEdge = !mobileMenuOpen && touch.clientX <= 24;
+      const canCloseFromDrawer = mobileMenuOpen && touch.clientX <= drawerWidth;
+
+      if (!canOpenFromEdge && !canCloseFromDrawer) {
+        return;
+      }
+
+      swipeStateRef.current = {
+        tracking: true,
+        mode: mobileMenuOpen ? "close" : "open",
+        startX: touch.clientX,
+        startY: touch.clientY,
+        lastX: touch.clientX,
+      };
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const state = swipeStateRef.current;
+      if (!state.tracking || event.touches.length !== 1) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      const deltaX = touch.clientX - state.startX;
+      const deltaY = touch.clientY - state.startY;
+
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
+        swipeStateRef.current = { ...state, tracking: false, mode: null };
+        return;
+      }
+
+      swipeStateRef.current = { ...state, lastX: touch.clientX };
+    };
+
+    const onTouchEnd = () => {
+      const state = swipeStateRef.current;
+      if (!state.tracking || !state.mode) {
+        swipeStateRef.current = { ...state, tracking: false, mode: null };
+        return;
+      }
+
+      const deltaX = state.lastX - state.startX;
+      const openThreshold = 70;
+      const closeThreshold = -70;
+
+      if (state.mode === "open" && deltaX >= openThreshold) {
+        setMobileMenuOpen(true);
+      }
+
+      if (state.mode === "close" && deltaX <= closeThreshold) {
+        setMobileMenuOpen(false);
+      }
+
+      swipeStateRef.current = { ...state, tracking: false, mode: null };
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <nav className="pdf-export-control relative">
@@ -69,10 +165,10 @@ export const AppNavbar = ({ onThemeToggle }: AppNavbarProps) => {
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/85 text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
           aria-label="Открыть меню"
         >
-          <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5">
-            <path d="M3 5h14v1.8H3V5Zm0 4.1h14v1.8H3V9.1Zm0 4.1h14V15H3v-1.8Z" fill="currentColor" />
-          </svg>
-        </button>
+                <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5">
+                  <path d="M3 5h14v1.8H3V5Zm0 4.1h14v1.8H3V9.1Zm0 4.1h14V15H3v-1.8Z" fill="currentColor" />
+                </svg>
+              </button>
         <ThemeToggleButton onThemeToggle={onThemeToggle} compact />
       </div>
 
