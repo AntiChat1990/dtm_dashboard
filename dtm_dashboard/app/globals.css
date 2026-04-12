@@ -109,8 +109,55 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+:root {
+  --scrollbar-track: #e7ecef;
+  --scrollbar-thumb: #9fb0bb;
+  --scrollbar-thumb-hover: #80939f;
+}
+
+:root.dark {
+  --scrollbar-track: #1f2937;
+  --scrollbar-thumb: #4b5563;
+  --scrollbar-thumb-hover: #6b7280;
+}
+
+:root.dtm {
+  --scrollbar-track: #d8eff1;
+  --scrollbar-thumb: #6ea7ad;
+  --scrollbar-thumb-hover: #4f8a91;
+}
+
 * {
   border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+body,
+.app-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+body::-webkit-scrollbar,
+.app-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body::-webkit-scrollbar-track,
+.app-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+body::-webkit-scrollbar-thumb,
+.app-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+  background: var(--scrollbar-thumb);
+}
+
+body::-webkit-scrollbar-thumb:hover,
+.app-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 .dtm-brand-logo {

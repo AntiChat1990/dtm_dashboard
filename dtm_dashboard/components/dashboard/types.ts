@@ -27,7 +27,6 @@ export type DashboardHeaderProps = {
   onCurrencySelect: (code: CurrencyRate["code"]) => void;
   onMonthMenuToggle: () => void;
   onMonthSelect: (monthId: string) => void;
-  onThemeToggle: () => void;
   selectedCurrency: CurrencyRate["code"];
   selectedCurrencyMeta: CurrencyRate;
   selectedMonth: MonthSummary;

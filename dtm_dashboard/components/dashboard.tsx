@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AppNavbar } from "@/components/app-navbar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { getCategoryCards } from "@/components/dashboard/formatters";
@@ -140,6 +141,8 @@ export const Dashboard = ({ data }: DashboardProps) => {
   return (
     <main className="pdf-report-root dtm-theme-scope min-h-screen bg-[radial-gradient(circle_at_top,#d6e7ff_0%,#f7fafc_45%,#ffffff_100%)] px-4 py-8 text-zinc-900 dark:bg-[radial-gradient(circle_at_top,#162033_0%,#0b0f18_45%,#06080e_100%)] dark:text-zinc-100 dtm:bg-[radial-gradient(circle_at_top,#d3f4f7_0%,#effbfc_48%,#ffffff_100%)] dtm:text-teal-950 sm:px-6">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <AppNavbar onThemeToggle={toggleTheme} />
+
         <DashboardHeader
           currencyMenuOpen={currencyMenuOpen}
           currencyMenuRef={currencyMenuRef}
@@ -159,7 +162,6 @@ export const Dashboard = ({ data }: DashboardProps) => {
             setExpandedWarehouse(null);
             setMonthMenuOpen(false);
           }}
-          onThemeToggle={toggleTheme}
           selectedCurrency={selectedCurrency}
           selectedCurrencyMeta={selectedCurrencyMeta}
           selectedMonth={selectedMonth}
