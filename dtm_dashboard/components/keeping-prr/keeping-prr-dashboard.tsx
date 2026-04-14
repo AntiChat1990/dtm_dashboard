@@ -93,7 +93,7 @@ export const KeepingPrrDashboard = ({ data }: KeepingPrrDashboardProps) => {
           warehouseOptions={data.warehouses}
         />
 
-        <KeepingPrrOverviewCards month={selectedMonth} previousMonth={previousMonth} />
+        <KeepingPrrOverviewCards warehouse={warehouse} month={selectedMonth} previousMonth={previousMonth} />
 
         <section className="grid gap-4 lg:grid-cols-[1.1fr,1.4fr]">
           <KeepingPrrMonthlyTrend months={warehouse.months} selectedMonthId={selectedMonth.id} />

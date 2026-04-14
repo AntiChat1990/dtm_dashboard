@@ -33,6 +33,15 @@ export type KeepingPrrMonth = {
 export type KeepingPrrWarehouse = {
   name: string;
   months: KeepingPrrMonth[];
+  limits: {
+    maxStock: number;
+    maxWork: number;
+  } | null;
+  latestSnapshot: {
+    dateIso: string;
+    stock: number;
+    stockUtilizationPercent: number | null;
+  } | null;
 };
 
 export type KeepingPrrData = {

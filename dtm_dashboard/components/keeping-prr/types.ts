@@ -15,6 +15,7 @@ export type KeepingPrrHeaderProps = {
 };
 
 export type KeepingPrrOverviewCardsProps = {
+  warehouse: KeepingPrrWarehouse;
   month: KeepingPrrMonth;
   previousMonth: KeepingPrrMonth | null;
 };

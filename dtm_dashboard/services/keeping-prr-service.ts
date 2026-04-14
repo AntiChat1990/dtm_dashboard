@@ -5,6 +5,12 @@ import type { KeepingPrrData, KeepingPrrDay, KeepingPrrMonth, KeepingPrrWarehous
 import { parseMonthFromFilename } from "@/services/dashboard/parsing";
 
 const KEEPING_PRR_ROOT = path.join(process.cwd(), "excel_data", "keeping_prr");
+const MAX_TARIFF_PATH = path.join(process.cwd(), "app", "max_tariff.json");
+
+type TariffLimit = {
+  max_stock: number;
+  max_work: number;
+};
 
 type HeaderIndexes = {
   period: number;
@@ -17,6 +23,40 @@ type HeaderIndexes = {
 
 const normalizeCell = (value: unknown): string => String(value ?? "").trim().toLowerCase();
 const normalizeHeaderCell = (value: unknown): string => normalizeCell(value).replace(/\s+/g, " ");
+const normalizeWarehouseKey = (value: string): string =>
+  normalizeCell(value)
+    .replace(/[\s_-]+/g, "")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+
+const readTariffLimits = (): Map<string, TariffLimit> => {
+  if (!fs.existsSync(MAX_TARIFF_PATH)) {
+    return new Map();
+  }
+
+  try {
+    const raw = fs.readFileSync(MAX_TARIFF_PATH, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, Partial<TariffLimit>>;
+    const entries = Object.entries(parsed)
+      .map(([warehouseName, limit]) => ({
+        warehouseKey: normalizeWarehouseKey(warehouseName),
+        max_stock: Number(limit.max_stock ?? 0),
+        max_work: Number(limit.max_work ?? 0),
+      }))
+      .filter((limit) => Number.isFinite(limit.max_stock) && Number.isFinite(limit.max_work) && limit.warehouseKey);
+
+    return new Map(
+      entries.map((limit) => [
+        limit.warehouseKey,
+        {
+          max_stock: limit.max_stock,
+          max_work: limit.max_work,
+        },
+      ]),
+    );
+  } catch {
+    return new Map();
+  }
+};
 
 const parseTonnes = (value: unknown): number => {
   if (typeof value === "number") {
@@ -224,7 +264,11 @@ const parseMonthFile = (filePath: string): KeepingPrrMonth | null => {
   };
 };
 
-const readWarehouse = (warehouseFolderPath: string, warehouseName: string): KeepingPrrWarehouse | null => {
+const readWarehouse = (
+  warehouseFolderPath: string,
+  warehouseName: string,
+  tariffLimits: Map<string, TariffLimit>,
+): KeepingPrrWarehouse | null => {
   const files = fs
     .readdirSync(warehouseFolderPath)
     .filter((fileName) => fileName.toLowerCase().endsWith(".xlsx"))
@@ -239,9 +283,28 @@ const readWarehouse = (warehouseFolderPath: string, warehouseName: string): Keep
     return null;
   }
 
+  const latestMonth = months.at(-1) ?? null;
+  const latestDay = latestMonth?.days.at(-1) ?? null;
+  const limit = tariffLimits.get(normalizeWarehouseKey(warehouseName)) ?? null;
+
   return {
     name: warehouseName,
     months,
+    limits:
+      limit && limit.max_stock > 0 && limit.max_work > 0
+        ? {
+            maxStock: limit.max_stock,
+            maxWork: limit.max_work,
+          }
+        : null,
+    latestSnapshot: latestDay
+      ? {
+          dateIso: latestDay.dateIso,
+          stock: latestDay.stock,
+          stockUtilizationPercent:
+            limit && limit.max_stock > 0 ? (latestDay.stock / limit.max_stock) * 100 : null,
+        }
+      : null,
   };
 };
 
@@ -253,10 +316,12 @@ export const getKeepingPrrData = async (): Promise<KeepingPrrData> => {
     };
   }
 
+  const tariffLimits = readTariffLimits();
+
   const warehouses = fs
     .readdirSync(KEEPING_PRR_ROOT, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => readWarehouse(path.join(KEEPING_PRR_ROOT, entry.name), entry.name))
+    .map((entry) => readWarehouse(path.join(KEEPING_PRR_ROOT, entry.name), entry.name, tariffLimits))
     .filter((warehouse): warehouse is KeepingPrrWarehouse => warehouse !== null)
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 

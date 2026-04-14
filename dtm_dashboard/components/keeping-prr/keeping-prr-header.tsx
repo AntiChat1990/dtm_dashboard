@@ -1,7 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import type { KeepingPrrWarehouse } from "@/lib/keeping-prr-types";
 import type { KeepingPrrHeaderProps } from "@/components/keeping-prr/types";
+
+const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
+
+const formatTonnes = (value: number): string =>
+  `${new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)} т`;
+
+const getWarehouseLoadLabel = (warehouse: KeepingPrrWarehouse): string => {
+  const percent = warehouse.latestSnapshot?.stockUtilizationPercent ?? null;
+  const stock = warehouse.latestSnapshot?.stock ?? null;
+
+  if (percent === null || stock === null) {
+    return "нет данных";
+  }
+
+  return `${formatPercent(percent)} · ${formatTonnes(stock)}`;
+};
 
 export const KeepingPrrHeader = ({
   generatedAt,
@@ -16,6 +36,8 @@ export const KeepingPrrHeader = ({
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
   const warehouseMenuRef = useRef<HTMLDivElement | null>(null);
   const monthMenuRef = useRef<HTMLDivElement | null>(null);
+  const activeWarehouse = warehouseOptions.find((warehouse) => warehouse.name === selectedWarehouse) ?? null;
+  const activeWarehouseLoadLabel = activeWarehouse ? getWarehouseLoadLabel(activeWarehouse) : "нет данных";
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -66,17 +88,20 @@ export const KeepingPrrHeader = ({
               onClick={() => setWarehouseMenuOpen((prev) => !prev)}
               className="group relative inline-flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white/85 px-3 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
             >
-              <span className="truncate font-semibold">{selectedWarehouse}</span>
+              <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                <span className="truncate font-semibold">{selectedWarehouse}</span>
+                <span className="shrink-0 text-xs font-normal text-zinc-500 dark:text-zinc-400">{activeWarehouseLoadLabel}</span>
+              </span>
               <svg
                 aria-hidden
                 viewBox="0 0 20 20"
-                className={`h-4 w-4 text-zinc-500 transition group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200 ${warehouseMenuOpen ? "rotate-180" : ""}`}
+                className={`h-4 w-4 shrink-0 text-zinc-500 transition group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200 ${warehouseMenuOpen ? "rotate-180" : ""}`}
               >
                 <path d="M5 7.5L10 12.5L15 7.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
               </svg>
             </button>
             {warehouseMenuOpen ? (
-              <div className="app-scrollbar absolute left-0 z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95">
+              <div className="app-scrollbar absolute left-0 z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/95">
                 {warehouseOptions.map((warehouse) => {
                   const isSelected = warehouse.name === selectedWarehouse;
 
@@ -94,7 +119,12 @@ export const KeepingPrrHeader = ({
                           : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800/70"
                       }`}
                     >
-                      <span>{warehouse.name}</span>
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                        <span className="truncate">{warehouse.name}</span>
+                        <span className="shrink-0 text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                          {getWarehouseLoadLabel(warehouse)}
+                        </span>
+                      </span>
                       {isSelected ? <span aria-hidden>✓</span> : null}
                     </button>
                   );
