@@ -27,6 +27,7 @@ const normalizeWarehouseKey = (value: string): string =>
   normalizeCell(value)
     .replace(/[\s_-]+/g, "")
     .replace(/[^\p{L}\p{N}]/gu, "");
+const normalizeWarehouseLabel = (value: string): string => normalizeCell(value).replace(/[\s_-]+/g, " ").trim();
 
 const readTariffLimits = (): Map<string, TariffLimit> => {
   if (!fs.existsSync(MAX_TARIFF_PATH)) {
@@ -308,6 +309,169 @@ const readWarehouse = (
   };
 };
 
+const isWarehouseVariant = (baseName: string, candidateName: string): boolean => {
+  const base = normalizeWarehouseLabel(baseName);
+  const candidate = normalizeWarehouseLabel(candidateName);
+
+  if (!base || !candidate) {
+    return false;
+  }
+
+  if (base === candidate) {
+    return true;
+  }
+
+  if (!candidate.startsWith(base)) {
+    return false;
+  }
+
+  return candidate.charAt(base.length) === " ";
+};
+
+const aggregateMonth = (months: KeepingPrrMonth[]): KeepingPrrMonth | null => {
+  if (months.length === 0) {
+    return null;
+  }
+
+  const baseMonth = [...months].sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))[0];
+  if (!baseMonth) {
+    return null;
+  }
+
+  const daysByIso = new Map<string, KeepingPrrDay>();
+
+  for (const month of months) {
+    for (const day of month.days) {
+      const current = daysByIso.get(day.dateIso);
+      if (!current) {
+        daysByIso.set(day.dateIso, { ...day });
+        continue;
+      }
+
+      current.inbound += day.inbound;
+      current.outbound += day.outbound;
+      current.stock += day.stock;
+      current.inboundCorrection += day.inboundCorrection;
+      current.outboundCorrection += day.outboundCorrection;
+      current.net += day.net;
+      current.movement += day.movement;
+    }
+  }
+
+  const days = Array.from(daysByIso.values()).sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+  if (days.length === 0) {
+    return null;
+  }
+
+  const firstDay = days[0];
+  const lastDay = days[days.length - 1];
+  if (!firstDay || !lastDay) {
+    return null;
+  }
+
+  const totalInbound = days.reduce((acc, day) => acc + day.inbound, 0);
+  const totalOutbound = days.reduce((acc, day) => acc + day.outbound, 0);
+  const totalInboundCorrection = days.reduce((acc, day) => acc + day.inboundCorrection, 0);
+  const totalOutboundCorrection = days.reduce((acc, day) => acc + day.outboundCorrection, 0);
+  const openingStock = firstDay.stock - firstDay.net;
+  const closingStock = lastDay.stock;
+  const averageStock = days.reduce((acc, day) => acc + day.stock, 0) / days.length;
+  const stocks = days.map((day) => day.stock);
+  const minStock = Math.min(...stocks);
+  const maxStock = Math.max(...stocks);
+  const netFlow = totalInbound - totalOutbound + totalInboundCorrection - totalOutboundCorrection;
+  const averageDailyTurnover = days.reduce((acc, day) => acc + day.movement, 0) / days.length;
+
+  return {
+    id: baseMonth.id,
+    label: baseMonth.label,
+    month: baseMonth.month,
+    year: baseMonth.year,
+    sourcePeriod: Array.from(new Set(months.map((month) => month.sourcePeriod).filter(Boolean))).join("; "),
+    days,
+    totalInbound,
+    totalOutbound,
+    totalInboundCorrection,
+    totalOutboundCorrection,
+    openingStock,
+    closingStock,
+    averageStock,
+    minStock,
+    maxStock,
+    netFlow,
+    averageDailyTurnover,
+  };
+};
+
+const aggregateWarehouses = (warehouses: KeepingPrrWarehouse[]): KeepingPrrWarehouse[] => {
+  const grouped: { baseName: string; warehouses: KeepingPrrWarehouse[] }[] = [];
+  const sortedWarehouses = [...warehouses].sort((a, b) => {
+    const lengthDiff = normalizeWarehouseLabel(a.name).length - normalizeWarehouseLabel(b.name).length;
+    return lengthDiff !== 0 ? lengthDiff : a.name.localeCompare(b.name, "ru");
+  });
+
+  for (const warehouse of sortedWarehouses) {
+    const group = grouped.find((entry) => isWarehouseVariant(entry.baseName, warehouse.name));
+    if (group) {
+      group.warehouses.push(warehouse);
+      continue;
+    }
+
+    grouped.push({
+      baseName: warehouse.name,
+      warehouses: [warehouse],
+    });
+  }
+
+  return grouped
+    .map((group): KeepingPrrWarehouse | null => {
+      const monthsById = new Map<string, KeepingPrrMonth[]>();
+
+      for (const warehouse of group.warehouses) {
+        for (const month of warehouse.months) {
+          const current = monthsById.get(month.id) ?? [];
+          current.push(month);
+          monthsById.set(month.id, current);
+        }
+      }
+
+      const months = Array.from(monthsById.values())
+        .map((monthGroup) => aggregateMonth(monthGroup))
+        .filter((month): month is KeepingPrrMonth => month !== null)
+        .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
+
+      if (months.length === 0) {
+        return null;
+      }
+
+      const maxStock = group.warehouses.reduce((acc, warehouse) => acc + (warehouse.limits?.maxStock ?? 0), 0);
+      const maxWork = group.warehouses.reduce((acc, warehouse) => acc + (warehouse.limits?.maxWork ?? 0), 0);
+      const latestMonth = months.at(-1) ?? null;
+      const latestDay = latestMonth?.days.at(-1) ?? null;
+
+      return {
+        name: group.baseName,
+        months,
+        limits:
+          maxStock > 0 && maxWork > 0
+            ? {
+                maxStock,
+                maxWork,
+              }
+            : null,
+        latestSnapshot: latestDay
+          ? {
+              dateIso: latestDay.dateIso,
+              stock: latestDay.stock,
+              stockUtilizationPercent: maxStock > 0 ? (latestDay.stock / maxStock) * 100 : null,
+            }
+          : null,
+      };
+    })
+    .filter((warehouse): warehouse is KeepingPrrWarehouse => warehouse !== null)
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+};
+
 export const getKeepingPrrData = async (): Promise<KeepingPrrData> => {
   if (!fs.existsSync(KEEPING_PRR_ROOT)) {
     return {
@@ -318,12 +482,12 @@ export const getKeepingPrrData = async (): Promise<KeepingPrrData> => {
 
   const tariffLimits = readTariffLimits();
 
-  const warehouses = fs
+  const warehouseFolders = fs
     .readdirSync(KEEPING_PRR_ROOT, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => readWarehouse(path.join(KEEPING_PRR_ROOT, entry.name), entry.name, tariffLimits))
-    .filter((warehouse): warehouse is KeepingPrrWarehouse => warehouse !== null)
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    .filter((warehouse): warehouse is KeepingPrrWarehouse => warehouse !== null);
+  const warehouses = aggregateWarehouses(warehouseFolders);
 
   return {
     warehouses,
