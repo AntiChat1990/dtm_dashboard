@@ -403,15 +403,58 @@ const aggregateMonth = (months: KeepingPrrMonth[]): KeepingPrrMonth | null => {
   };
 };
 
-const aggregateWarehouses = (warehouses: KeepingPrrWarehouse[]): KeepingPrrWarehouse[] => {
-  const grouped: { baseName: string; warehouses: KeepingPrrWarehouse[] }[] = [];
-  const sortedWarehouses = [...warehouses].sort((a, b) => {
+const aggregateWarehouses = (
+  warehouses: KeepingPrrWarehouse[],
+  explicitWarehouseKeys: Set<string>,
+): KeepingPrrWarehouse[] => {
+  const explicitGroups = new Map<string, { baseName: string; warehouses: KeepingPrrWarehouse[] }>();
+  const nonExplicitWarehouses: KeepingPrrWarehouse[] = [];
+
+  for (const warehouse of warehouses) {
+    const warehouseKey = normalizeWarehouseKey(warehouse.name);
+    if (!explicitWarehouseKeys.has(warehouseKey)) {
+      nonExplicitWarehouses.push(warehouse);
+      continue;
+    }
+
+    const group = explicitGroups.get(warehouseKey);
+    if (group) {
+      group.warehouses.push(warehouse);
+      continue;
+    }
+
+    explicitGroups.set(warehouseKey, {
+      baseName: warehouse.name,
+      warehouses: [warehouse],
+    });
+  }
+
+  // Attach non-explicit folders (e.g. "<warehouse> Данафлекс") to explicit warehouses from max_tariff.json.
+  for (const warehouse of nonExplicitWarehouses) {
+    const candidates = Array.from(explicitGroups.values()).filter((group) => isWarehouseVariant(group.baseName, warehouse.name));
+    if (candidates.length === 0) {
+      continue;
+    }
+
+    candidates.sort((a, b) => normalizeWarehouseLabel(b.baseName).length - normalizeWarehouseLabel(a.baseName).length);
+    candidates[0]?.warehouses.push(warehouse);
+  }
+
+  const attachedNonExplicitKeys = new Set(
+    Array.from(explicitGroups.values())
+      .flatMap((group) => group.warehouses)
+      .map((warehouse) => warehouse.name),
+  );
+  const remainingNonExplicit = nonExplicitWarehouses.filter((warehouse) => !attachedNonExplicitKeys.has(warehouse.name));
+
+  const grouped: { baseName: string; warehouses: KeepingPrrWarehouse[] }[] = [...explicitGroups.values()];
+  const sortedRemainingNonExplicit = [...remainingNonExplicit].sort((a, b) => {
     const lengthDiff = normalizeWarehouseLabel(a.name).length - normalizeWarehouseLabel(b.name).length;
     return lengthDiff !== 0 ? lengthDiff : a.name.localeCompare(b.name, "ru");
   });
 
-  for (const warehouse of sortedWarehouses) {
-    const group = grouped.find((entry) => isWarehouseVariant(entry.baseName, warehouse.name));
+  for (const warehouse of sortedRemainingNonExplicit) {
+    const group = grouped.find((entry) => !explicitWarehouseKeys.has(normalizeWarehouseKey(entry.baseName)) && isWarehouseVariant(entry.baseName, warehouse.name));
     if (group) {
       group.warehouses.push(warehouse);
       continue;
@@ -487,7 +530,7 @@ export const getKeepingPrrData = async (): Promise<KeepingPrrData> => {
     .filter((entry) => entry.isDirectory())
     .map((entry) => readWarehouse(path.join(KEEPING_PRR_ROOT, entry.name), entry.name, tariffLimits))
     .filter((warehouse): warehouse is KeepingPrrWarehouse => warehouse !== null);
-  const warehouses = aggregateWarehouses(warehouseFolders);
+  const warehouses = aggregateWarehouses(warehouseFolders, new Set(tariffLimits.keys()));
 
   return {
     warehouses,
